@@ -3,6 +3,7 @@ const router = express.Router();
 const gravatar = require("gravatar");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const config = require("config");
 const { check, validationResult } = require("express-validator");
 
 const User = require("../../models/User");
@@ -14,6 +15,7 @@ router.post(
   "/",
   [
     check("name", "Name is required").not().isEmpty(),
+    check("email", "Please include a valid email").isEmail(),
     check(
       "password",
       "Please enter a password with 6 or more characters"
@@ -44,6 +46,7 @@ router.post(
       });
 
       user = new User({
+        // Encrypt password
         name,
         email,
         avatar,
@@ -56,10 +59,23 @@ router.post(
 
       await user.save();
 
-      // Encrypt password
-
       //Return jsonwebtoken
-      res.send("User registered");
+
+      const payload = {
+        user: {
+          id: user.id,
+        },
+      };
+
+      jwt.sign(
+        payload,
+        config.get("jwtSecret"),
+        { expiresIn: 360000 },
+        (error, token) => {
+          if (error) throw error;
+          res.json({ token });
+        }
+      );
     } catch (error) {
       console.error(error.message);
       res.status(500).send("Server error");
